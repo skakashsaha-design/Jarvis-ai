@@ -12,6 +12,9 @@ export type ScreenId =
   | 'chat'
   | 'voice'
   | 'vision'
+  | 'weather'
+  | 'news'
+  | 'electronics'
   | 'memory'
   | 'history'
   | 'customization'
@@ -124,3 +127,45 @@ export interface DeviceInfo {
   platform: string;
   userAgent: string;
 }
+
+export interface WeatherData {
+  city: string;
+  country: string;
+  temp: number;
+  apparentTemp: number;
+  condition: string;
+  conditionCode: number;
+  humidity: number;
+  windSpeed: number;
+  pressure: number;
+  forecast: Array<{
+    day: string;
+    tempMax: number;
+    tempMin: number;
+    condition: string;
+  }>;
+  aiBriefing?: string;
+  updatedAt: number;
+}
+
+export interface NewsItem {
+  id: string;
+  title: string;
+  summary: string;
+  category: 'world' | 'tech' | 'science' | 'cyber' | 'electronics' | 'bangladesh';
+  source?: string;
+  url?: string;
+  timestamp: string;
+  readTime?: string;
+}
+
+export interface ElectronicProduct {
+  id: string;
+  name: string;
+  category: 'microcontroller' | 'sensor' | 'ic' | 'passive' | 'phone' | 'gadget';
+  specs: Record<string, string>;
+  pinoutOrDiagram?: string;
+  description: string;
+  practicalApplications: string[];
+}
+

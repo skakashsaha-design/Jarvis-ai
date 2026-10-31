@@ -16,6 +16,9 @@ import {
   Brain,
   ShieldAlert,
   Radio,
+  CloudSun,
+  Newspaper,
+  Cpu,
 } from 'lucide-react';
 import { ArcReactorCanvas } from '../ArcReactorCanvas';
 import { CoreState, AppSettings, DeviceInfo, ScreenId, OperationalMode } from '../../types';
@@ -312,6 +315,54 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             briefing
           )}
         </p>
+      </div>
+
+      {/* Recon & Telemetry Modules Strip */}
+      <div className="grid grid-cols-3 gap-2 w-full">
+        <button
+          onClick={() => {
+            if (settings.soundFX) soundEffects.playPing('click');
+            onNavigate('weather');
+          }}
+          className="p-2.5 rounded-2xl hud-panel border border-cyan-500/25 hover:border-cyan-400 text-left transition group active:scale-95 bg-black/40 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <CloudSun className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition" />
+            <span className="text-[9px] font-mono text-cyan-400/80">RADAR</span>
+          </div>
+          <div className="text-[11px] font-bold font-hud text-cyan-200">Weather</div>
+          <div className="text-[9px] text-slate-400 font-mono truncate">Live Sensors</div>
+        </button>
+
+        <button
+          onClick={() => {
+            if (settings.soundFX) soundEffects.playPing('click');
+            onNavigate('news');
+          }}
+          className="p-2.5 rounded-2xl hud-panel border border-cyan-500/25 hover:border-cyan-400 text-left transition group active:scale-95 bg-black/40 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <Newspaper className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition" />
+            <span className="text-[9px] font-mono text-emerald-400/80">WIRE</span>
+          </div>
+          <div className="text-[11px] font-bold font-hud text-emerald-200">News Feed</div>
+          <div className="text-[9px] text-slate-400 font-mono truncate">Global Grounded</div>
+        </button>
+
+        <button
+          onClick={() => {
+            if (settings.soundFX) soundEffects.playPing('click');
+            onNavigate('electronics');
+          }}
+          className="p-2.5 rounded-2xl hud-panel border border-cyan-500/25 hover:border-cyan-400 text-left transition group active:scale-95 bg-black/40 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <Cpu className="w-4 h-4 text-purple-400 group-hover:scale-110 transition" />
+            <span className="text-[9px] font-mono text-purple-400/80">LAB</span>
+          </div>
+          <div className="text-[11px] font-bold font-hud text-purple-200">Electronics</div>
+          <div className="text-[9px] text-slate-400 font-mono truncate">Galaxy A2 / ICs</div>
+        </button>
       </div>
 
       {/* Quick Directives Section */}

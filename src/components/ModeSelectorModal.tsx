@@ -96,8 +96,8 @@ export const ModeSelectorModal: React.FC<ModeSelectorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
-      <div className="w-full max-w-md rounded-2xl hud-panel p-5 border border-cyan-500/40 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 overflow-y-auto animate-fade-in">
+      <div className="w-full max-w-md rounded-2xl hud-panel p-4 sm:p-5 border border-cyan-500/40 space-y-3 sm:space-y-4 max-h-[88vh] overflow-y-auto my-auto">
         <div className="flex items-center justify-between pb-2.5 border-b border-cyan-500/20">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-300">

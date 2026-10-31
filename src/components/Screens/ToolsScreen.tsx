@@ -18,17 +18,20 @@ import {
   Clock,
   Sparkles,
   ExternalLink,
+  CloudSun,
+  Newspaper,
 } from 'lucide-react';
-import { AppSettings, DeviceInfo } from '../../types';
+import { AppSettings, DeviceInfo, ScreenId } from '../../types';
 import { storageService } from '../../services/storage';
 import { soundEffects } from '../../services/speech';
 
 interface ToolsScreenProps {
   settings: AppSettings;
   deviceInfo: DeviceInfo;
+  onNavigate?: (screen: ScreenId) => void;
 }
 
-export const ToolsScreen: React.FC<ToolsScreenProps> = ({ settings, deviceInfo }) => {
+export const ToolsScreen: React.FC<ToolsScreenProps> = ({ settings, deviceInfo, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'intents' | 'notes' | 'calc' | 'translate'>('intents');
 
   // Notes state
@@ -144,6 +147,47 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ settings, deviceInfo }
           <span>{deviceInfo.batteryLevel ?? 85}%</span>
         </div>
       </div>
+
+      {/* Recon & Engineering Subsystems */}
+      {onNavigate && (
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => {
+              if (settings.soundFX) soundEffects.playPing('click');
+              onNavigate('weather');
+            }}
+            className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 hover:border-cyan-400 text-left transition group active:scale-95"
+          >
+            <CloudSun className="w-4 h-4 text-cyan-400 mb-1 group-hover:scale-110 transition" />
+            <div className="text-xs font-hud font-bold text-cyan-200">Weather</div>
+            <div className="text-[10px] text-slate-400 font-mono">Radar & Audio</div>
+          </button>
+
+          <button
+            onClick={() => {
+              if (settings.soundFX) soundEffects.playPing('click');
+              onNavigate('news');
+            }}
+            className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 hover:border-cyan-400 text-left transition group active:scale-95"
+          >
+            <Newspaper className="w-4 h-4 text-emerald-400 mb-1 group-hover:scale-110 transition" />
+            <div className="text-xs font-hud font-bold text-emerald-200">News Wire</div>
+            <div className="text-[10px] text-slate-400 font-mono">Grounded Feed</div>
+          </button>
+
+          <button
+            onClick={() => {
+              if (settings.soundFX) soundEffects.playPing('click');
+              onNavigate('electronics');
+            }}
+            className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 hover:border-cyan-400 text-left transition group active:scale-95"
+          >
+            <Cpu className="w-4 h-4 text-purple-400 mb-1 group-hover:scale-110 transition" />
+            <div className="text-xs font-hud font-bold text-purple-200">Electronics</div>
+            <div className="text-[10px] text-slate-400 font-mono">A2 Core & ICs</div>
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="grid grid-cols-4 gap-1.5">

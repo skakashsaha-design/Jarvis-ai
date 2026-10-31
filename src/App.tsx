@@ -31,6 +31,9 @@ import { PersonalityScreen } from './components/Screens/PersonalityScreen';
 import { ToolsScreen } from './components/Screens/ToolsScreen';
 import { PrivacyScreen } from './components/Screens/PrivacyScreen';
 import { AboutScreen } from './components/Screens/AboutScreen';
+import { WeatherScreen } from './components/Screens/WeatherScreen';
+import { NewsScreen } from './components/Screens/NewsScreen';
+import { ElectronicsScreen } from './components/Screens/ElectronicsScreen';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -376,6 +379,33 @@ export default function App() {
           />
         )}
 
+        {currentScreen === 'weather' && (
+          <WeatherScreen
+            settings={settings}
+            onSendDirective={handleSendDirective}
+          />
+        )}
+
+        {currentScreen === 'news' && (
+          <NewsScreen
+            settings={settings}
+            onNavigateToChat={(prompt) => {
+              setCurrentScreen('chat');
+              handleSendMessage(prompt);
+            }}
+          />
+        )}
+
+        {currentScreen === 'electronics' && (
+          <ElectronicsScreen
+            settings={settings}
+            onNavigateToChat={(prompt) => {
+              setCurrentScreen('chat');
+              handleSendMessage(prompt);
+            }}
+          />
+        )}
+
         {currentScreen === 'memory' && (
           <MemoryScreen
             memories={memories}
@@ -423,6 +453,7 @@ export default function App() {
           <ToolsScreen
             settings={settings}
             deviceInfo={deviceInfo}
+            onNavigate={setCurrentScreen}
           />
         )}
 

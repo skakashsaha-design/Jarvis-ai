@@ -22,6 +22,8 @@ import {
   Brain,
   ShieldAlert,
   Radio,
+  CloudSun,
+  Newspaper,
 } from 'lucide-react';
 import { ScreenId, AppSettings, DeviceInfo, OperationalMode } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -66,6 +68,9 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({
   ];
 
   const drawerItems: Array<{ id: ScreenId; label: string; icon: React.FC<{ className?: string }>; desc: string }> = [
+    { id: 'weather', label: 'Atmospheric Weather', icon: CloudSun, desc: 'Live sensors, forecasts & voice briefing' },
+    { id: 'news', label: 'Intelligence News Wire', icon: Newspaper, desc: 'Breaking world, tech, electronics & local news' },
+    { id: 'electronics', label: 'Electronics & Hardware', icon: Cpu, desc: 'Pinouts, resistor calc & device specs' },
     { id: 'memory', label: 'Memory Manager', icon: Database, desc: 'Short, long & custom knowledge' },
     { id: 'history', label: 'Chat History', icon: History, desc: 'Saved conversation logs' },
     { id: 'customization', label: 'Customization', icon: Sliders, desc: 'Themes, voice & AMOLED styles' },
@@ -78,25 +83,25 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({
   return (
     <>
       {/* Top HUD Bar */}
-      <header className="sticky top-0 z-40 w-full hud-panel border-b border-cyan-500/20 px-3 py-2 flex items-center justify-between backdrop-blur-md">
+      <header className="sticky top-0 z-40 w-full hud-panel border-b border-cyan-500/20 px-2 sm:px-3 py-1.5 sm:py-2 flex items-center justify-between backdrop-blur-md overflow-x-hidden">
         {/* Brand & State */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
           <button
             onClick={() => handleNav('dashboard')}
-            className="flex items-center gap-2 text-left group"
+            className="flex items-center gap-1.5 sm:gap-2 text-left group shrink-0"
           >
-            <div className="relative w-7 h-7 rounded-lg bg-cyan-950/80 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-sm shadow-cyan-500/20">
+            <div className="relative w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-cyan-950/80 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-sm shadow-cyan-500/20 shrink-0">
               <span className="font-hud font-bold text-xs tracking-wider">J</span>
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
             </div>
-            <div>
-              <div className="text-xs font-hud font-bold text-cyan-300 tracking-wider flex items-center gap-1.5">
+            <div className="min-w-0">
+              <div className="text-xs font-hud font-bold text-cyan-300 tracking-wider flex items-center gap-1 truncate">
                 <span>JARVIS M.V.</span>
-                <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-950 text-cyan-400 font-mono border border-cyan-800">
+                <span className="text-[8px] sm:text-[9px] px-1 py-0.2 rounded bg-cyan-950 text-cyan-400 font-mono border border-cyan-800 shrink-0">
                   AI
                 </span>
               </div>
-              <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+              <div className="hidden xs:flex text-[9px] text-slate-400 font-mono items-center gap-1 truncate">
                 <span className="capitalize">{settings.personality}</span>
                 <span>•</span>
                 <span>{deviceInfo.isOnline ? 'Online' : 'Offline'}</span>
@@ -106,14 +111,14 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({
         </div>
 
         {/* Center / Right Telemetry & Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Mode Selector Trigger */}
           <button
             onClick={() => {
               if (settings.soundFX) soundEffects.playPing('click');
               setShowModeModal(true);
             }}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+            className={`flex items-center gap-0.5 sm:gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono border transition-all ${
               settings.activeMode === 'deep-thought'
                 ? 'bg-purple-950/80 text-purple-300 border-purple-500/50'
                 : settings.activeMode === 'live-recon'
@@ -126,12 +131,12 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({
             }`}
             title="Switch Operational Mode"
           >
-            {settings.activeMode === 'deep-thought' && <Brain className="w-3 h-3 text-purple-400" />}
-            {settings.activeMode === 'live-recon' && <Globe className="w-3 h-3 text-emerald-400" />}
-            {settings.activeMode === 'combat' && <ShieldAlert className="w-3 h-3 text-rose-400" />}
-            {settings.activeMode === 'stealth' && <Radio className="w-3 h-3 text-amber-400" />}
-            {settings.activeMode === 'tactical' && <Zap className="w-3 h-3 text-cyan-400" />}
-            <span className="uppercase font-bold">
+            {settings.activeMode === 'deep-thought' && <Brain className="w-3 h-3 text-purple-400 shrink-0" />}
+            {settings.activeMode === 'live-recon' && <Globe className="w-3 h-3 text-emerald-400 shrink-0" />}
+            {settings.activeMode === 'combat' && <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />}
+            {settings.activeMode === 'stealth' && <Radio className="w-3 h-3 text-amber-400 shrink-0" />}
+            {settings.activeMode === 'tactical' && <Zap className="w-3 h-3 text-cyan-400 shrink-0" />}
+            <span className="uppercase font-bold text-[9px] sm:text-[10px]">
               {settings.activeMode === 'deep-thought'
                 ? 'THINK'
                 : settings.activeMode === 'live-recon'
@@ -139,7 +144,7 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({
                 : settings.activeMode === 'combat'
                 ? 'WAR'
                 : settings.activeMode === 'stealth'
-                ? 'STEALTH'
+                ? 'OFFLINE'
                 : 'HUD'}
             </span>
           </button>
@@ -147,20 +152,20 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({
           {/* Lite Mode Toggle badge */}
           <button
             onClick={toggleLiteMode}
-            className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+            className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono border transition-all ${
               settings.liteMode
                 ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50'
                 : 'bg-slate-900/80 text-slate-400 border-slate-700 hover:text-slate-200'
             }`}
             title="Toggle Lite Mode (Optimized for 1GB RAM on Samsung Galaxy A2 Core)"
           >
-            {settings.liteMode ? 'LITE 1GB' : 'FULL HUD'}
+            {settings.liteMode ? '1GB LITE' : 'FULL'}
           </button>
 
-          {/* Battery Status */}
+          {/* Battery Status (Desktop & Tablet) */}
           {deviceInfo.batteryLevel !== null && (
             <div
-              className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900/60 border border-slate-700/60 text-[10px] font-mono text-slate-300"
+              className="hidden md:flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900/60 border border-slate-700/60 text-[10px] font-mono text-slate-300"
               title={`Device Battery: ${deviceInfo.batteryLevel}%`}
             >
               {deviceInfo.isCharging ? (
@@ -172,9 +177,9 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({
             </div>
           )}
 
-          {/* Online / Offline */}
+          {/* Online / Offline (Tablet+) */}
           <div
-            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono border ${
+            className={`hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono border ${
               deviceInfo.isOnline
                 ? 'bg-cyan-950/40 text-cyan-400 border-cyan-800/40'
                 : 'bg-amber-950/60 text-amber-300 border-amber-600/50 animate-pulse'
@@ -193,7 +198,7 @@ export const NavigationHUD: React.FC<NavigationHUDProps> = ({
               if (settings.soundFX) soundEffects.playPing('click');
               setDrawerOpen(!drawerOpen);
             }}
-            className="p-1.5 rounded-lg border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950/50 transition"
+            className="p-1 sm:p-1.5 rounded-lg border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950/50 transition shrink-0"
             aria-label="Toggle Systems Menu"
           >
             {drawerOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}

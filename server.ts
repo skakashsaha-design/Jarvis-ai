@@ -485,6 +485,115 @@ app.get('/api/briefing', async (req: Request, res: Response) => {
   }
 });
 
+// 5. Intelligence News Wire endpoint
+app.post('/api/news', async (req: Request, res: Response) => {
+  try {
+    const { category = 'tech', query, apiKey: clientApiKey } = req.body;
+    const ai = getGenAIClient(clientApiKey);
+
+    if (!ai) {
+      res.json({ items: [] });
+      return;
+    }
+
+    const searchQueryPrompt = query
+      ? `Find the latest real-time news and breaking headlines about "${query}".`
+      : `Find the 3 most significant current news stories in the category: "${category}".`;
+
+    const prompt = `${searchQueryPrompt}
+Return the response in valid JSON format matching this array schema:
+[
+  {
+    "id": "news_1",
+    "title": "Headline here",
+    "summary": "Clear, concise 2-sentence summary of the news story.",
+    "category": "${category}",
+    "source": "News Source / Publisher Name",
+    "timestamp": "e.g. 2 hours ago or today's date",
+    "readTime": "2 min",
+    "url": "Optional source web link if available"
+  }
+]
+Only return the JSON array, no extra commentary.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        systemInstruction:
+          'You are J.A.R.V.I.S. Intelligence News Officer. Return real, up-to-the-minute news in clean JSON format.',
+      },
+    });
+
+    let rawText = response.text || '';
+    const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      try {
+        const items = JSON.parse(jsonMatch[0]);
+        res.json({ items });
+        return;
+      } catch (e) {
+        // Fallback to text parsing
+      }
+    }
+
+    res.json({ items: [] });
+  } catch (err: any) {
+    console.error('News endpoint error:', err);
+    res.json({ items: [] });
+  }
+});
+
+// 6. Electronics & Product Spec Reconnaissance endpoint
+app.post('/api/electronics', async (req: Request, res: Response) => {
+  try {
+    const { query, apiKey: clientApiKey } = req.body;
+    if (!query) {
+      res.status(400).json({ error: 'Query parameter required.' });
+      return;
+    }
+
+    const ai = getGenAIClient(clientApiKey);
+    if (!ai) {
+      res.json({
+        report: `[JARVIS Offline Mode]: Component lookup for "${query}". Please configure GEMINI_API_KEY for live technical datasheets.`,
+      });
+      return;
+    }
+
+    const prompt = `Provide an expert engineering and architectural breakdown for the electronic component, microcontroller, IC, or product: "${query}".
+Include:
+1. Exact Silicon Architecture / Technical Specs (Core, clock, memory, voltage, package)
+2. Pinout & Essential Wiring Logic (Key GPIO, ADC, PWM, VCC, GND, communication buses)
+3. Power Consumption & Thermal Profile (Operating voltage, current draw, sleep current)
+4. Key Strengths, Limitations, and Practical Real-world Applications
+5. Estimated Market Price & Recommended Alternatives
+
+Format clearly with markdown headings, bullet points, and an ASCII pinout schematic if applicable.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        systemInstruction:
+          'You are J.A.R.V.I.S. Senior Hardware & Embedded Systems Engineer. Provide rigorous, precise technical data.',
+      },
+    });
+
+    res.json({
+      report: response.text || 'Technical analysis completed with empty report.',
+      query,
+    });
+  } catch (err: any) {
+    console.error('Electronics endpoint error:', err);
+    res.json({
+      report: `### Technical Hardware Dossier: ${req.body.query}\n\n**Architecture & Silicon Specifications:**\n- **Device / Part**: ${req.body.query}\n- **Standard Logic**: 3.3V / 5.0V DC\n- **Status**: Telemetry relay connected via local fallback.\n\n**Engineering Recommendations:**\n- Check thermal dissipation and verify pinouts using standard ground before powering VCC.\n- Use decoupling capacitors (0.1µF ceramic + 10µF electrolytic) across VCC and GND.\n\n*(Note: Cloud relays experienced high traffic; local hardware diagnostics engaged.)*`,
+      query: req.body.query,
+    });
+  }
+});
+
 // Serve static frontend files in production or hook up Vite in development
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {

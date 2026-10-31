@@ -11,6 +11,9 @@ import {
   Cpu,
   Layers,
   Sparkles,
+  ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { generateAndroidProjectZip } from '../../services/apkGenerator';
 import { PWAInstallButton } from '../PWAInstallButton';
@@ -19,6 +22,16 @@ import { soundEffects } from '../../services/speech';
 export const AboutScreen: React.FC = () => {
   const [generatingZip, setGeneratingZip] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [copiedAppUrl, setCopiedAppUrl] = useState(false);
+
+  const directAppUrl = 'https://ais-pre-5zpxpusk7qxsrosn3r7czj-792117591950.asia-east1.run.app';
+
+  const handleCopyAppUrl = () => {
+    navigator.clipboard.writeText(directAppUrl);
+    setCopiedAppUrl(true);
+    if (soundEffects) soundEffects.playPing('complete');
+    setTimeout(() => setCopiedAppUrl(false), 2500);
+  };
 
   const handleDownloadProjectZip = async () => {
     setGeneratingZip(true);
@@ -84,7 +97,7 @@ export const AboutScreen: React.FC = () => {
         </p>
 
         {/* Option 1: 1-Click Native WebAPK Install */}
-        <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 space-y-2">
+        <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-hud font-bold text-cyan-300">
               METHOD 1: 1-CLICK NATIVE ANDROID INSTALL (RECOMMENDED)
@@ -93,11 +106,33 @@ export const AboutScreen: React.FC = () => {
               BEST FOR 1GB RAM
             </span>
           </div>
-          <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
-            On Android 8.1 Chrome, tapping the button below instructs Android to compile a standalone native WebAPK into your phone launcher. It runs smoothly with zero background RAM drain.
-          </p>
-          <div className="pt-1 flex items-center gap-2">
-            <PWAInstallButton />
+
+          <div className="p-2 rounded-lg bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-200">
+            <strong>Important:</strong> When browsing inside AI Studio, Chrome cannot install the app from within an iframe. Open the standalone app directly in Chrome to install the APK!
+          </div>
+
+          <div className="space-y-1.5 text-[11px] text-slate-300 font-sans">
+            <div>1. Tap <strong>"Open in Standalone Chrome"</strong> below (or paste link into Chrome).</div>
+            <div>2. In Chrome, tap the <strong>⋮</strong> menu (top right) → tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</div>
+            <div>3. Android compiles and installs a standalone APK with the Arc Reactor icon!</div>
+          </div>
+
+          <div className="pt-1 flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => window.open(directAppUrl, '_blank')}
+              className="flex-1 py-2 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-hud font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-cyan-950"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open in Standalone Chrome</span>
+            </button>
+
+            <button
+              onClick={handleCopyAppUrl}
+              className="py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 font-mono text-xs flex items-center justify-center gap-1.5 transition"
+            >
+              {copiedAppUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedAppUrl ? 'Copied!' : 'Copy Link'}</span>
+            </button>
           </div>
         </div>
 
