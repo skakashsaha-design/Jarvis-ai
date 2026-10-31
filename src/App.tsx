@@ -10,6 +10,7 @@ import {
   AppSettings,
   ChatMessage,
   MemoryItem,
+  FileAttachment,
 } from './types';
 import { storageService } from './services/storage';
 import { soundEffects, voiceSynthesizer } from './services/speech';
@@ -91,13 +92,19 @@ export default function App() {
   };
 
   // Chat message transmission
-  const handleSendMessage = async (text: string, imageUrl?: string, isVoice: boolean = false) => {
+  const handleSendMessage = async (
+    text: string,
+    imageUrl?: string,
+    fileAttachment?: FileAttachment,
+    isVoice: boolean = false
+  ) => {
     const userMsg: ChatMessage = {
       id: `msg_u_${Date.now()}`,
       role: 'user',
       text,
       timestamp: Date.now(),
       imageUrl,
+      fileAttachment,
       isVoice,
     };
 
@@ -114,8 +121,8 @@ export default function App() {
         ? memories.map((m) => `${m.title}: ${m.content}`)
         : [];
 
-      // If user uploaded an image, route through multimodal vision endpoint
-      if (imageUrl) {
+      // If user uploaded an image and no other prompt/file, route through multimodal vision endpoint
+      if (imageUrl && !fileAttachment) {
         const visionRes = await fetch('/api/vision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -160,7 +167,7 @@ export default function App() {
         return;
       }
 
-      // Normal chat endpoint
+      // Normal chat endpoint supporting files, web search grounding, and deep reasoning
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,7 +192,10 @@ export default function App() {
               : settings.openrouterModel,
           webGrounding: settings.webGroundingEnabled,
           deepThinking: settings.deepThinkingEnabled,
+          thinkLonger: settings.thinkLonger,
+          activePlugin: settings.activePlugin,
           operationalMode: settings.activeMode,
+          fileAttachment,
         }),
       });
 
@@ -204,6 +214,9 @@ export default function App() {
         model: data.model,
         groundingSources: data.groundingSources,
         webSearchQueries: data.webSearchQueries,
+        thinkingProcess: data.thoughtProcess,
+        thinkingDurationMs: data.thinkingDurationMs,
+        activePlugin: data.activePlugin,
       };
 
       const updated = [...newChatList, assistantMsg];
@@ -254,14 +267,19 @@ export default function App() {
   const handleRegenerate = async () => {
     const lastUserMsg = [...chats].reverse().find((c) => c.role === 'user');
     if (lastUserMsg) {
-      await handleSendMessage(lastUserMsg.text, lastUserMsg.imageUrl, lastUserMsg.isVoice);
+      await handleSendMessage(
+        lastUserMsg.text,
+        lastUserMsg.imageUrl,
+        lastUserMsg.fileAttachment,
+        lastUserMsg.isVoice
+      );
     }
   };
 
   // Direct directive from Dashboard quick chips or voice
   const handleSendDirective = async (text: string) => {
     setCurrentScreen('chat');
-    await handleSendMessage(text, undefined, true);
+    await handleSendMessage(text, undefined, undefined, true);
   };
 
   const handleClearAll = () => {
@@ -346,7 +364,7 @@ export default function App() {
             coreState={coreState}
             setCoreState={setCoreState}
             lastAssistantMessage={[...chats].reverse().find((c) => c.role === 'assistant')}
-            onSendVoiceMessage={(text) => handleSendMessage(text, undefined, true)}
+            onSendVoiceMessage={(text) => handleSendMessage(text, undefined, undefined, true)}
           />
         )}
 

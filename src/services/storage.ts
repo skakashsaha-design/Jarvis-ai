@@ -22,6 +22,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activeMode: 'tactical',
   webGroundingEnabled: true,
   deepThinkingEnabled: false,
+  thinkLonger: false,
+  activePlugin: 'none',
   autopilotVoice: false,
   theme: 'classic',
   personality: 'jarvis',

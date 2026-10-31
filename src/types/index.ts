@@ -50,18 +50,30 @@ export type OperationalMode =
   | 'combat' // Iron Man Mark 85 Threat Alert Mode
   | 'stealth'; // Zero network emissions, 100% offline local knowledge
 
+export interface FileAttachment {
+  name: string;
+  size: string;
+  type: 'image' | 'video' | 'pdf' | 'spreadsheet' | 'document' | 'presentation' | 'code' | 'other';
+  mimeType: string;
+  base64?: string;
+  textPreview?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   text: string;
   timestamp: number;
   imageUrl?: string;
+  fileAttachment?: FileAttachment;
   provider?: string;
   model?: string;
   isVoice?: boolean;
   groundingSources?: Array<{ title?: string; uri?: string }>;
   webSearchQueries?: string[];
   thinkingProcess?: string;
+  thinkingDurationMs?: number;
+  activePlugin?: string;
 }
 
 export interface MemoryItem {
@@ -77,6 +89,8 @@ export interface AppSettings {
   activeMode: OperationalMode;
   webGroundingEnabled: boolean; // Gemini Google Search Live Grounding
   deepThinkingEnabled: boolean; // Gemini High Thinking Level
+  thinkLonger: boolean; // Extended Thinking / Reason Longer Mode
+  activePlugin: 'none' | 'web-search' | 'code-interpreter' | 'spreadsheet-calc' | 'deep-reasoner';
   autopilotVoice: boolean; // Hands-free continuous loop
   theme: ThemeId;
   personality: PersonalityId;

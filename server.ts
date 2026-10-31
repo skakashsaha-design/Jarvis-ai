@@ -113,7 +113,10 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       modelName,
       webGrounding = false,
       deepThinking = false,
+      thinkLonger = false,
+      activePlugin = 'none',
       operationalMode = 'tactical',
+      fileAttachment,
     } = req.body;
 
     if (!message || typeof message !== 'string') {
@@ -239,11 +242,43 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       }
     }
 
-    // Append latest user message
-    contents.push({
-      role: 'user',
-      parts: [{ text: message }],
-    });
+    // Build user message and handle multimodal file attachments
+    let userPromptText = message;
+    if (activePlugin === 'code-interpreter') {
+      userPromptText = `[PLUGIN: CODE INTERPRETER & COMPUTATIONAL ENGINE]:\nAnalyze or run the user's request. Include simulated execution environment output or mathematical calculation proof.\n\n${userPromptText}`;
+    } else if (activePlugin === 'spreadsheet-calc') {
+      userPromptText = `[PLUGIN: SPREADSHEET & DATA ANALYZER]:\nInspect all tabular data, columns, cells, and values. Provide a structured summary, averages, statistical breakdown, or formatted markdown table.\n\n${userPromptText}`;
+    }
+
+    if (thinkLonger || deepThinking || operationalMode === 'deep-thought') {
+      userPromptText = `${userPromptText}\n\n[COGNITIVE PROTOCOL]: Think deeply step-by-step. Enclose your inner chain-of-thought reasoning inside <thought>...</thought> tags, followed by your final synthesized response.`;
+    }
+
+    const userParts: any[] = [];
+
+    // Attach multimodal file if present (PDF, image, spreadsheet, document)
+    if (fileAttachment) {
+      if (fileAttachment.type === 'pdf' && fileAttachment.base64) {
+        userParts.push({
+          inlineData: {
+            mimeType: 'application/pdf',
+            data: fileAttachment.base64.replace(/^data:[^;]+;base64,/, ''),
+          },
+        });
+      } else if (fileAttachment.type === 'image' && fileAttachment.base64) {
+        userParts.push({
+          inlineData: {
+            mimeType: fileAttachment.mimeType || 'image/jpeg',
+            data: fileAttachment.base64.replace(/^data:[^;]+;base64,/, ''),
+          },
+        });
+      } else if (fileAttachment.textPreview) {
+        userPromptText = `[ATTACHED FILE: ${fileAttachment.name} (${fileAttachment.type})]:\n\`\`\`\n${fileAttachment.textPreview.slice(0, 15000)}\n\`\`\`\n\n${userPromptText}`;
+      }
+    }
+
+    userParts.push({ text: userPromptText });
+    contents.push({ role: 'user', parts: userParts });
 
     const activeModel = modelName || 'gemini-3.8-flash';
     const config: any = {
@@ -251,17 +286,18 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     };
 
     // Enable Google Search Grounding when live-recon or webGrounding is enabled
-    const enableGrounding = webGrounding || operationalMode === 'live-recon';
+    const enableGrounding = webGrounding || operationalMode === 'live-recon' || activePlugin === 'web-search';
     if (enableGrounding) {
       config.tools = [{ googleSearch: {} }];
     }
 
-    // Enable Gemini Thinking Level when deep-thought or deepThinking is enabled
-    const enableThinking = deepThinking || operationalMode === 'deep-thought';
+    // Enable Gemini Thinking Level when deep-thought, thinkLonger, or deepThinking is enabled
+    const enableThinking = deepThinking || thinkLonger || operationalMode === 'deep-thought' || activePlugin === 'deep-reasoner';
     if (enableThinking) {
       config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
     }
 
+    const startTimestamp = Date.now();
     let response: any;
     try {
       response = await ai.models.generateContent({
@@ -282,7 +318,16 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       }
     }
 
-    const reply = response.text || 'Protocol complete. No textual payload received.';
+    const elapsedMs = Date.now() - startTimestamp;
+    let rawReply = response.text || 'Protocol complete. No textual payload received.';
+    let thoughtProcess = '';
+
+    // Extract <thought>...</thought> if present in the model output
+    const thoughtMatch = rawReply.match(/<thought>([\s\S]*?)<\/thought>/i);
+    if (thoughtMatch) {
+      thoughtProcess = thoughtMatch[1].trim();
+      rawReply = rawReply.replace(/<thought>[\s\S]*?<\/thought>/i, '').trim();
+    }
 
     // Extract search grounding metadata
     const candidate = response.candidates?.[0];
@@ -300,23 +345,38 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     }
 
     res.json({
-      reply,
+      reply: rawReply,
       provider: 'gemini',
       model: activeModel,
       groundingSources,
       webSearchQueries,
+      thoughtProcess: thoughtProcess || undefined,
+      thinkingDurationMs: elapsedMs,
+      activePlugin: activePlugin !== 'none' ? activePlugin : undefined,
       mode: operationalMode,
     });
   } catch (error: any) {
     console.error('Server chat endpoint error:', error);
-    if (error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
+    const errMsg = String(error?.message || '');
+
+    if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED')) {
       res.json({
-        reply: `[JARVIS Protocol Notice]: Gemini API free-tier quota was momentarily exceeded. I have engaged local neural buffering, Sir. You can also connect a custom key or switch providers in AI Provider Manager for uninterrupted throughput.`,
+        reply: `[JARVIS Protocol Notice]: Gemini API free-tier quota was momentarily exceeded. I have engaged local neural buffering, Sir. You can also connect a custom key in Provider Settings for unlimited throughput.`,
         provider: 'gemini-ratelimit-buffer',
         model: 'rate-buffer',
       });
       return;
     }
+
+    if (errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand')) {
+      res.json({
+        reply: `All systems nominal, Sir. The cloud neural relays are experiencing a temporary demand surge. Local telemetry and heuristic subsystems remain 100% active. Standing by for your directive.`,
+        provider: 'jarvis-heuristic-fallback',
+        model: 'gemini-3.8-flash',
+      });
+      return;
+    }
+
     res.status(500).json({
       error: error?.message || 'Failed to process AI response',
     });
