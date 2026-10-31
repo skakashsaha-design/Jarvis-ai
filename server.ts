@@ -1,0 +1,450 @@
+import express, { Request, Response } from 'express';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const PORT = Number(process.env.PORT) || 3000;
+
+// Increase JSON payload limit for image uploads
+app.use(express.json({ limit: '25mb' }));
+
+// Initialize default server-side Google GenAI client
+function getGenAIClient(customKey?: string) {
+  const apiKey = customKey || process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
+    },
+  });
+}
+
+// System instructions builder based on personality and memory
+function buildSystemInstruction(
+  personality: string = 'jarvis',
+  customPrompt?: string,
+  memories: string[] = []
+): string {
+  let personaDesc = '';
+
+  switch (personality) {
+    case 'jarvis':
+      personaDesc = `You are J.A.R.V.I.S. M.V. (Just A Rather Very Intelligent System - Mobile Version), an ultra-advanced personal artificial intelligence companion inspired by Tony Stark's iconic AI. You are sophisticated, articulate, composed, highly intelligent, and loyal. Address the user respectfully (e.g., 'Sir' or 'Boss' or by their name if remembered). Provide concise, precise, actionable answers with technical flair, futuristic HUD-ready formatting, and zero unnecessary fluff. Always be ready to assist with calculations, code, device tasks, and analysis.`;
+      break;
+    case 'professional':
+      personaDesc = `You are a consummate professional executive AI assistant. Your communication is polished, structured, concise, and focused on productivity, accuracy, and clear business communication.`;
+      break;
+    case 'friendly':
+      personaDesc = `You are a warm, supportive, friendly AI companion. You have high empathy, conversational warmth, positive encouragement, and a genuine interest in helping the user with their daily life and thoughts.`;
+    case 'humorous':
+      personaDesc = `You are witty, quick-witted, humorous, and charming AI companion with smart puns, clever pop-culture references, and lighthearted humor while still providing genuinely helpful answers.`;
+      break;
+    case 'scientific':
+      personaDesc = `You are a rigorous scientific and STEM assistant. You prioritize first-principles thinking, mathematical exactness, empirical evidence, structured hypotheses, and clear academic explanations.`;
+      break;
+    case 'calm':
+      personaDesc = `You are a serene, zen-like, mindful, and deeply intelligent AI companion. You speak with tranquility, clarity, and thoughtful wisdom, helping reduce stress and organize thoughts.`;
+      break;
+    case 'study':
+      personaDesc = `You are a dedicated study buddy and master tutor. You break down complex concepts into step-by-step intuitive explanations, use analogies, quiz the user when appropriate, and encourage deep retention.`;
+      break;
+    case 'custom':
+      personaDesc = customPrompt || 'You are an intelligent, versatile personal AI companion.';
+      break;
+    default:
+      personaDesc = `You are J.A.R.V.I.S. M.V., a sophisticated futuristic personal AI companion.`;
+  }
+
+  let memoryContext = '';
+  if (memories && memories.length > 0) {
+    memoryContext = `\n\n[USER PERMANENT MEMORY & FACTS]:\n${memories
+      .map((m, i) => `${i + 1}. ${m}`)
+      .join('\n')}\nUse these remembered details naturally in conversation without reciting them unprompted.`;
+  }
+
+  return `${personaDesc}
+${memoryContext}
+
+[LANGUAGE CAPABILITIES]:
+- You are fully bilingual in English and Bengali (বাংলা).
+- If the user addresses you in Bengali, respond naturally in clear, high-quality Bengali (বাংলা).
+- If the user asks in English, respond in English.
+- If the user asks for translations or code, provide clean, exact results.
+
+[FORMATTING]:
+- Use clean Markdown with short paragraphs and bullet points where helpful.
+- When generating code, use markdown fenced code blocks with language tags.
+- Keep responses snappy and suitable for mobile reading.`;
+}
+
+// 1. Health / status check
+app.get('/api/status', (req: Request, res: Response) => {
+  const hasEnvKey = !!process.env.GEMINI_API_KEY;
+  res.json({
+    status: 'online',
+    version: '2.5.0-mobile',
+    serverModel: 'gemini-3.8-flash',
+    hasServerApiKey: hasEnvKey,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// 2. Chat endpoint
+app.post('/api/chat', async (req: Request, res: Response) => {
+  try {
+    const {
+      message,
+      history = [],
+      personality = 'jarvis',
+      customPrompt,
+      memories = [],
+      provider = 'gemini',
+      apiKey: clientApiKey,
+      modelName,
+      webGrounding = false,
+      deepThinking = false,
+      operationalMode = 'tactical',
+    } = req.body;
+
+    if (!message || typeof message !== 'string') {
+      res.status(400).json({ error: 'Message is required.' });
+      return;
+    }
+
+    let modePrefix = '';
+    if (operationalMode === 'combat') {
+      modePrefix = `\n\n[COMBAT PROTOCOL / THREAT LEVEL ALPHA]: Priority emergency mode. Maintain razor-sharp tactical brevity, perimeter threat assessment, shield status updates, and actionable defense solutions.`;
+    } else if (operationalMode === 'stealth') {
+      modePrefix = `\n\n[STEALTH PROTOCOL ACTIVATED]: Maintain low-signature profile, covert precision, zero telemetry leaks, and concise encrypted responses.`;
+    }
+
+    const systemInstruction = buildSystemInstruction(personality, customPrompt, memories) + modePrefix;
+
+    // Handling Groq Provider if specified and user provided key
+    if (provider === 'groq' && clientApiKey) {
+      try {
+        const groqModel = modelName || 'llama-3.3-70b-versatile';
+        const groqMessages = [
+          { role: 'system', content: systemInstruction },
+          ...history.slice(-8).map((h: any) => ({
+            role: h.role === 'user' ? 'user' : 'assistant',
+            content: h.text,
+          })),
+          { role: 'user', content: message },
+        ];
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${clientApiKey}`,
+          },
+          body: JSON.stringify({
+            model: groqModel,
+            messages: groqMessages,
+            temperature: 0.7,
+            max_tokens: 1024,
+          }),
+        });
+
+        if (!groqRes.ok) {
+          const errText = await groqRes.text();
+          throw new Error(`Groq API error (${groqRes.status}): ${errText}`);
+        }
+
+        const groqData = await groqRes.json();
+        const reply = groqData.choices?.[0]?.message?.content || 'No response from Groq.';
+        res.json({ reply, provider: 'groq', model: groqModel });
+        return;
+      } catch (err: any) {
+        console.error('Groq call error, falling back to Gemini:', err.message);
+        // Fall back to server Gemini
+      }
+    }
+
+    // Handling OpenRouter Provider if specified and user provided key
+    if (provider === 'openrouter' && clientApiKey) {
+      try {
+        const orModel = modelName || 'mistralai/mistral-7b-instruct:free';
+        const orMessages = [
+          { role: 'system', content: systemInstruction },
+          ...history.slice(-8).map((h: any) => ({
+            role: h.role === 'user' ? 'user' : 'assistant',
+            content: h.text,
+          })),
+          { role: 'user', content: message },
+        ];
+
+        const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${clientApiKey}`,
+            'HTTP-Referer': 'https://jarvis-mv.ai',
+            'X-Title': 'JARVIS M.V. AI',
+          },
+          body: JSON.stringify({
+            model: orModel,
+            messages: orMessages,
+          }),
+        });
+
+        if (!orRes.ok) {
+          const errText = await orRes.text();
+          throw new Error(`OpenRouter API error (${orRes.status}): ${errText}`);
+        }
+
+        const orData = await orRes.json();
+        const reply = orData.choices?.[0]?.message?.content || 'No response from OpenRouter.';
+        res.json({ reply, provider: 'openrouter', model: orModel });
+        return;
+      } catch (err: any) {
+        console.error('OpenRouter call error, falling back to Gemini:', err.message);
+      }
+    }
+
+    // Default: Gemini API using @google/genai
+    const ai = getGenAIClient(clientApiKey);
+    if (!ai) {
+      // If neither server key nor user key exists, provide intelligent fallback response
+      res.json({
+        reply: `[JARVIS M.V. System Notice]: Server Gemini API key is currently configuring. I am operating in Offline Protocol Mode. You asked: "${message}". Please attach an API key in Provider Settings or ensure GEMINI_API_KEY is active.`,
+        provider: 'offline-heuristic',
+        model: 'heuristic-core',
+      });
+      return;
+    }
+
+    // Construct conversation contents with history for multi-turn context
+    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+
+    // Append recent history (last 8 messages for optimal 1GB RAM and fast mobile tokens)
+    const recentHistory = Array.isArray(history) ? history.slice(-8) : [];
+    for (const item of recentHistory) {
+      if (item && item.text) {
+        contents.push({
+          role: item.role === 'user' ? 'user' : 'model',
+          parts: [{ text: item.text }],
+        });
+      }
+    }
+
+    // Append latest user message
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }],
+    });
+
+    const activeModel = modelName || 'gemini-3.8-flash';
+    const config: any = {
+      systemInstruction,
+    };
+
+    // Enable Google Search Grounding when live-recon or webGrounding is enabled
+    const enableGrounding = webGrounding || operationalMode === 'live-recon';
+    if (enableGrounding) {
+      config.tools = [{ googleSearch: {} }];
+    }
+
+    // Enable Gemini Thinking Level when deep-thought or deepThinking is enabled
+    const enableThinking = deepThinking || operationalMode === 'deep-thought';
+    if (enableThinking) {
+      config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
+    }
+
+    let response: any;
+    try {
+      response = await ai.models.generateContent({
+        model: activeModel,
+        contents,
+        config,
+      });
+    } catch (genErr: any) {
+      if (config.tools || config.thinkingConfig) {
+        console.warn('Specialized tool request failed, falling back to standard generation:', genErr?.message);
+        response = await ai.models.generateContent({
+          model: activeModel,
+          contents,
+          config: { systemInstruction },
+        });
+      } else {
+        throw genErr;
+      }
+    }
+
+    const reply = response.text || 'Protocol complete. No textual payload received.';
+
+    // Extract search grounding metadata
+    const candidate = response.candidates?.[0];
+    const groundingChunks = candidate?.groundingMetadata?.groundingChunks;
+    const webSearchQueries = candidate?.groundingMetadata?.webSearchQueries;
+    let groundingSources: Array<{ title?: string; uri?: string }> = [];
+
+    if (Array.isArray(groundingChunks)) {
+      groundingSources = groundingChunks
+        .map((chunk: any) => ({
+          title: chunk.web?.title || 'Web Intelligence Reference',
+          uri: chunk.web?.uri || '',
+        }))
+        .filter((src: any) => !!src.uri);
+    }
+
+    res.json({
+      reply,
+      provider: 'gemini',
+      model: activeModel,
+      groundingSources,
+      webSearchQueries,
+      mode: operationalMode,
+    });
+  } catch (error: any) {
+    console.error('Server chat endpoint error:', error);
+    if (error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
+      res.json({
+        reply: `[JARVIS Protocol Notice]: Gemini API free-tier quota was momentarily exceeded. I have engaged local neural buffering, Sir. You can also connect a custom key or switch providers in AI Provider Manager for uninterrupted throughput.`,
+        provider: 'gemini-ratelimit-buffer',
+        model: 'rate-buffer',
+      });
+      return;
+    }
+    res.status(500).json({
+      error: error?.message || 'Failed to process AI response',
+    });
+  }
+});
+
+// 3. Vision and Multimodal Analysis endpoint
+app.post('/api/vision', async (req: Request, res: Response) => {
+  try {
+    const {
+      imageBase64,
+      mimeType = 'image/jpeg',
+      prompt = 'Describe this image in detail and identify key objects, text, and context.',
+      taskType = 'general',
+      apiKey: clientApiKey,
+    } = req.body;
+
+    if (!imageBase64) {
+      res.status(400).json({ error: 'Image data (base64) is required.' });
+      return;
+    }
+
+    const ai = getGenAIClient(clientApiKey);
+    if (!ai) {
+      res.status(500).json({
+        error: 'Gemini API key is not configured for vision analysis.',
+      });
+      return;
+    }
+
+    // Clean base64 string if it contains data URI header
+    const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+
+    let specializedPrompt = prompt;
+    if (taskType === 'ocr') {
+      specializedPrompt = `Extract and transcribe all visible text from this image with high precision. Maintain layout structure and hierarchy:\n\n${prompt}`;
+    } else if (taskType === 'diagram') {
+      specializedPrompt = `Analyze this diagram, flowchart, or technical chart. Explain the architecture, components, data flows, and conclusions:\n\n${prompt}`;
+    } else if (taskType === 'code') {
+      specializedPrompt = `Analyze the code or screenshot shown. Extract the code, explain what it does, detect any bugs, and suggest improvements:\n\n${prompt}`;
+    } else if (taskType === 'math') {
+      specializedPrompt = `Solve the mathematical equations, scientific formulas, or STEM problem in this image with step-by-step derivation and final result:\n\n${prompt}`;
+    } else if (taskType === 'hardware') {
+      specializedPrompt = `Analyze the electronic circuit board, hardware pins, chips, or mechanical devices shown. Detail components, labels, and schematic logic:\n\n${prompt}`;
+    }
+
+    const imagePart = {
+      inlineData: {
+        mimeType,
+        data: cleanBase64,
+      },
+    };
+
+    const textPart = {
+      text: specializedPrompt,
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: { parts: [imagePart, textPart] },
+      config: {
+        systemInstruction:
+          'You are J.A.R.V.I.S. M.V. Visual Reconnaissance Intelligence. Provide ultra-clear, concise, structured visual analysis. Support both English and Bengali if requested.',
+      },
+    });
+
+    const analysis = response.text || 'Visual analysis completed with empty report.';
+    res.json({
+      analysis,
+      model: 'gemini-3.8-flash',
+      taskType,
+    });
+  } catch (error: any) {
+    console.error('Server vision analysis error:', error);
+    res.status(500).json({
+      error: error?.message || 'Failed to analyze image.',
+    });
+  }
+});
+
+// 4. Quick Daily Briefing generator
+app.get('/api/briefing', async (req: Request, res: Response) => {
+  try {
+    const ai = getGenAIClient();
+    if (!ai) {
+      res.json({
+        briefing: `Good day, Sir. All local subsystems are functioning at optimal efficiency. Battery, sensors, and neural memory banks are operational. I am ready for your directives.`,
+      });
+      return;
+    }
+
+    const prompt = `Give a brief, crisp 2-paragraph morning/daily tactical intelligence briefing from JARVIS to Sir. Include motivational focus, tactical readiness, and readiness for tasks. Keep it under 100 words.`;
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        systemInstruction: 'You are J.A.R.V.I.S. M.V. Speak with calm, British sophistication and warmth.',
+      },
+    });
+
+    res.json({ briefing: response.text });
+  } catch (err: any) {
+    res.json({
+      briefing: `Good day, Sir. Local diagnostic: Systems operational. Core ready for directives.`,
+    });
+  }
+});
+
+// Serve static frontend files in production or hook up Vite in development
+async function startServer() {
+  if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.resolve(__dirname, 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req: Request, res: Response) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`JARVIS M.V. AI server running at http://0.0.0.0:${PORT}`);
+  });
+}
+
+startServer();

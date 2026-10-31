@@ -1,0 +1,11 @@
+{
+  "name": "JARVIS M.V. AI",
+  "description": "Advanced Personal Artificial Intelligence Companion with voice, vision, HUD interface, long-term memory, and Android device assistance.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
